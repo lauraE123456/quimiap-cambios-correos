@@ -8,6 +8,7 @@ const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs'); 
 const bcrypt = require('bcrypt');
+const mysql = require('mysql2');
 // Asegúrate de incluir esto
 // Creando una nueva aplicación Express.
 const app = express();
@@ -23,7 +24,7 @@ app.set("views", path.join(__dirname, "views"));
 
 // Configuración de CORS para permitir solicitudes desde el puerto 4000
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:4000'], // Puedes restringir esto a 'http://localhost:4000' si prefieres, o para todos:'*'
+    origin: ['http://localhost:3000', 'http://localhost:4001'], // Puedes restringir esto a 'http://localhost:4000' si prefieres, o para todos:'*'
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -32,6 +33,23 @@ app.use(cors({
 app.get("/", (req, res) => {
     res.render("bienvenida");
 });
+
+// conexion con la base de datos:
+const connection = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: 'Root',
+    database: 'quimiap'
+  });
+  
+  connection.connect((err) => {
+    if (err) {
+      console.error('Error conectando a la base de datos:', err.stack);
+      return;
+    }
+    console.log('Conexión exitosa a la base de datos.');
+  });
+  
 
 // Configuración de multer para manejar la carga de archivos
 const storage = multer.diskStorage({
@@ -54,12 +72,18 @@ const transporter = nodemailer.createTransport({
 });
 
 // Ruta para procesar el registro de usuario
-app.post("/Users", (req, res) => {
-    const userData = req.body; // Datos del usuario desde el formulario
-    // Aquí puedes agregar la lógica para guardar `userData` en la base de datos
-
-    res.status(201).send("Usuario registrado con éxito");
-});
+app.get('/usuarios', (req, res) => {
+    const query = 'SELECT * FROM Usuario';
+    
+    connection.query(query, (error, results) => {
+      if (error) {
+        console.error('Error al realizar la consulta:', error);
+        res.status(500).json({ error: 'Error al realizar la consulta' });
+      } else {
+        res.json(results); // Devuelve los resultados de la consulta
+      }
+    });
+  });
 
 // Ruta para enviar correo de verificación
 app.post("/enviar-verificacion", (req, res) => {
@@ -109,123 +133,107 @@ app.post("/enviar-verificacion", (req, res) => {
     });
 });
 
-// Ruta que hace una solicitud al API en el puerto 4000
-app.get("/Users", async (req, res) => {
-    try {
-        // Haciendo una solicitud GET al puerto 4000
-        const response = await axios.get('http://localhost:4000/Users');
-        res.status(200).json(response.data); // Enviar los datos obtenidos al cliente
-    } catch (error) {
-        console.error('Error al hacer la solicitud al API del puerto 4000:', error);
-        res.status(500).send('Error al obtener los datos del API');
-    }
-});
 //verificacion-correo
 // Nueva ruta para verificar el correo del usuario
-app.get("/verificar-correo/:id", (req, res) => {
-    const userId = req.params.id;
-    const filePath = path.join(__dirname, 'trabajo.json');
+// Ruta para verificar el correo del usuario
+app.get("/verificar-correo/:id_usuario", async (req, res) => {
+    const id_usuario = req.params.id_usuario; // Obtener el id_usuario desde la URL
+    console.log("ID del usuario recibido:", id_usuario);
 
-    // Leer el archivo JSON
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).send("Error al leer el archivo.");
-        }
+    try {
+        // Hacer una solicitud GET al servidor para obtener los datos del usuario
+        const response = await axios.get(`http://localhost:4001/usuario/${id_usuario}`);
+        const usuario = response.data;
 
-        // Parsear los datos del archivo JSON
-        const usuariosData = JSON.parse(data);
-        const usuarios = usuariosData.Users;
-
-        // Buscar el usuario por ID
-        const usuarioIndex = usuarios.findIndex(u => u.id === userId);
-        
-        if (usuarioIndex === -1) {
+        // Verificar si se encontró el usuario
+        if (!usuario) {
             return res.status(404).send("Usuario no encontrado.");
         }
 
         // Cambiar el estado del usuario a 'Activo'
-        usuarios[usuarioIndex].estado = "Activo";
+        usuario.estado = "Activo";
 
-        // Guardar los cambios en el archivo JSON
-        fs.writeFile(filePath, JSON.stringify(usuariosData, null, 2), (err) => {
-            if (err) {
-                return res.status(500).send("Error al guardar los cambios.");
-            }
+        // Hacer una solicitud PUT para actualizar el usuario
+        await axios.put(`http://localhost:4001/usuarios/${id_usuario}`, usuario);
 
-            res.send(`
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Correo Verificado</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            background-color: #f0f9ff;
-                            margin: 0;
-                            padding: 0;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100vh;
-                        }
-                        .container {
-                            background-color: #fff;
-                            padding: 40px;
-                            border-radius: 10px;
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                            text-align: center;
-                        }
-                        h1 {
-                            color: #28a745;
-                            font-size: 36px;
-                            margin-bottom: 10px;
-                        }
-                        p {
-                            font-size: 18px;
-                            color: #555;
-                            margin-bottom: 30px;
-                        }
-                        .button {
-                            display: inline-block;
-                            padding: 12px 24px;
-                            font-size: 18px;
-                            color: #fff;
-                            background-color: #007bff;
-                            border-radius: 6px;
-                            text-decoration: none;
-                            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-                            transition: background-color 0.3s ease;
-                        }
-                        .button:hover {
-                            background-color: #0056b3;
-                        }
-                        img {
-                            max-width: 150px;
-                            margin-bottom: 20px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <!-- Logo de la empresa -->
-                        <img src="http://localhost:3000/img/LOGO_JEFE_DE_PRODUCCIÓN-Photoroom.png" alt="Logo Quimiap">
-        
-                        <!-- Mensaje de verificación -->
-                        <h1>¡Correo Verificado!</h1>
-                        <p>Gracias por verificar tu correo electrónico. Ahora tu cuenta está activa.</p>
-        
-                        <!-- Botón para ir al inicio -->
-                        <a href="http://localhost:3000/inicio_registro.js" class="button">Ir al Inicio</a>
-                    </div>  
-                </body>
-                </html>
-            `);
-        });
-    });
+        // Enviar una respuesta de confirmación al cliente
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Correo Verificado</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        background-color: #f0f9ff;
+                        margin: 0;
+                        padding: 0;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                    }
+                    .container {
+                        background-color: #fff;
+                        padding: 40px;
+                        border-radius: 10px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        text-align: center;
+                    }
+                    h1 {
+                        color: #28a745;
+                        font-size: 36px;
+                        margin-bottom: 10px;
+                    }
+                    p {
+                        font-size: 18px;
+                        color: #555;
+                        margin-bottom: 30px;
+                    }
+                    .button {
+                        display: inline-block;
+                        padding: 12px 24px;
+                        font-size: 18px;
+                        color: #fff;
+                        background-color: #007bff;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                        transition: background-color 0.3s ease;
+                    }
+                    .button:hover {
+                        background-color: #0056b3;
+                    }
+                    img {
+                        max-width: 150px;
+                        margin-bottom: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <!-- Logo de la empresa -->
+                    <img src="http://localhost:3000/img/LOGO_JEFE_DE_PRODUCCIÓN-Photoroom.png" alt="Logo Quimiap">
     
+                    <!-- Mensaje de verificación -->
+                    <h1>¡Correo Verificado!</h1>
+                    <p>Gracias por verificar tu correo electrónico. Ahora tu cuenta está activa.</p>
+    
+                    <!-- Botón para ir al inicio -->
+                    <a href="http://localhost:3000/inicio_registro.js" class="button">Ir al Inicio</a>
+                </div>  
+            </body>
+            </html>
+        `);
+
+    } catch (error) {
+        console.error('Error al obtener o actualizar el usuario:', error);
+        res.status(500).send("Error al verificar el correo.");
+    }
 });
+
 // restablecer la contraseña:
 // Ruta para enviar el correo de restablecimiento de contraseña
 app.post("/enviar-restablecer-contrasena", (req, res) => {
@@ -393,7 +401,7 @@ app.post("/actualizar-contrasena", async (req, res) => {
             const usuariosData = JSON.parse(data);
             const usuarios = usuariosData.Users;
 
-            const usuarioIndex = usuarios.findIndex(u => u.correo_electronico === correo_electronico);
+            const usuarioIndex = usuarios.finadIndex(u => u.correo_electronico === correo_electronico);
 
             if (usuarioIndex === -1) {
                 return res.status(404).send("Usuario no encontrado.");

@@ -9,12 +9,12 @@ import bcrypt from 'bcryptjs';
 
 const Inicio_registro = () => {
     const [formData, setFormData] = useState({
-        tipo_doc: '',
-        num_doc: '',
         nombres: '',
         apellidos: '',
         telefono: '',
         correo_electronico: '',
+        tipo_doc: '',
+        num_doc: '',
         contrasena: '',
         rol: 'Cliente',
         estado: 'Pendiente'
@@ -102,7 +102,7 @@ const Inicio_registro = () => {
         
         try {
             // Verificar si el correo ya está registrado
-            const checkResponse = await axios.get(`http://localhost:4000/Users?correo_electronico=${formData.correo_electronico}`);
+            const checkResponse = await axios.get(`http://localhost:4001/usuarios/correo/${encodeURIComponent(formData.correo_electronico)}`);
         
             if (checkResponse.data.length > 0) {
                 // Si el correo ya está en la base de datos, mostrar la alerta
@@ -120,7 +120,7 @@ const Inicio_registro = () => {
             const hashedPassword = bcrypt.hashSync(formData.contrasena, 10);
         
             // Si el correo no existe, proceder con el registro
-            const response = await axios.post("http://localhost:4000/Users", {
+            const response = await axios.post("http://localhost:4001/registrarUser", {
                 ...formData,
                 contrasena: hashedPassword,
                 estado: "Pendiente" // Cambia el estado a pendiente
@@ -156,9 +156,6 @@ const Inicio_registro = () => {
             });
         }
     };
-    
-    
-    
 
     const handleChange = (event) => {
         const { name, value } = event.target;
@@ -256,7 +253,7 @@ const Inicio_registro = () => {
     
         try {
             // Realizar una solicitud GET a la API para obtener los usuarios
-            const response = await axios.get("http://localhost:4000/Users", {
+            const response = await axios.get("http://localhost:4001/iniciarSesion", {
                 params: {
                     correo_electronico: email
                 },
@@ -403,7 +400,7 @@ const Inicio_registro = () => {
         if (email) {
             try {
                 // Verificar si el correo existe en la base de datos
-                const checkResponse = await fetch(`http://localhost:4000/Users?correo_electronico=${email}`);
+                const checkResponse = await fetch(`http://localhost:4001/usuarios/correo/${encodeURIComponent(formData.correo_electronico)}`);
                 const data = await checkResponse.json();
     
                 if (data.length > 0) {
