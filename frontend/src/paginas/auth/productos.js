@@ -1,6 +1,5 @@
 import React, { useEffect, useState,useRef } from 'react';
 import Header2 from '../../componentes/header2';
-import {Link} from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,18 +11,19 @@ const Productos = () => {
     nombre: '',
     descripcion: '',
     imagen: '',
-    categoria: '',
+    categoria_id: '', 
     composicion: '',
     contenido_neto: '',
     usos: '',
     advertencias: '',
-    cantidad:'',
+    cantidad_producto: '',
     precio_unitario: '',
-    estado:'disponible'
+    estado: 'disponible' 
   });
 
   const [productos, setProductos] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [categorias, setCategorias] = useState([]); // Para almacenar las categorías
   const [currentProduct, setCurrentProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState(''); // Estado para filtro
   const [productsTypeFilter, setProductsTypeFilter] = useState('todos');
@@ -32,17 +32,31 @@ const Productos = () => {
 
     // Paginación
     const [currentPageProduct, setCurrentPageProduct] = useState(1);
-    const recordsPerPage = 2;
+    const recordsPerPage = 3;
 
-  // Función para obtener productos de la API
+  // Función para obtener productos de la base de datos
   const fetchProductos = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/Products');
+      const response = await axios.get('http://localhost:4001/Producto');
       setProductos(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
     }
   };
+
+  const fetchCategorias = async () => {
+    try {
+      const response = await axios.get('http://localhost:4001/categoria');
+      setCategorias(response.data); // Asumiendo que la respuesta tiene la estructura esperada
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProductos();
+    fetchCategorias(); // Llamar a la función para obtener las categorías al cargar el componente
+  }, []);
 
   useEffect(() => {
     fetchProductos();
@@ -56,7 +70,7 @@ const Productos = () => {
       const newFormData = { ...prevFormData, [id]: value };
 
       // Si se cambia la cantidad, ajustar el estado automáticamente
-      if (id === 'cantidad') {
+      if (id === 'cantidad_producto') {
         newFormData.estado = value > 0 ? 'disponible' : 'agotado';
       }
 
@@ -72,10 +86,55 @@ const Productos = () => {
   }
 
   // Función para registrar un nuevo producto
-// Función para registrar un producto
-const handleRegisterProduct = async () => {
-  // Validar campos requeridos
-  const requiredFields = ['nombre', 'descripcion', 'imagen', 'categoria', 'composicion', 'contenido_neto', 'usos', 'advertencias', 'cantidad', 'precio_unitario']; // Ajusta según los campos necesarios
+  const handleRegisterProduct = async () => {
+    const requiredFields = ['nombre', 'descripcion', 'imagen', 'categoria_id', 'composicion', 'contenido_neto', 'usos', 'advertencias', 'cantidad_producto', 'precio_unitario'];
+    const isFormValid = requiredFields.every(field => formData[field]);
+
+    if (!isFormValid) {
+      Swal.fire({
+        title: 'Complete todos los campos requeridos',
+        text: 'Por favor, asegúrese de que todos los campos obligatorios estén completos.',
+        icon: 'warning',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      return;
+    }
+
+    try {
+      await axios.post('http://localhost:4001/registrarProducto', formData);
+      fetchProductos(); // Actualizar la lista de productos
+      resetForm();
+      Swal.fire({
+        title: 'Producto registrado!!',
+        text: `El producto "${formData.nombre}" se registró`,
+        icon: 'success',
+        showConfirmButton: false,
+        timer: 1000, 
+      });
+    } catch (error) {
+      console.error('Error registering product:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'No se pudo registrar el producto.',
+        icon: 'error',
+        showConfirmButton: false,
+        timer: 2000, 
+      });
+    }
+  };
+
+
+// Función para editar un producto
+const handleEditProduct = (product) => {
+  setIsEditing(true);
+  setCurrentProduct(product);
+  setFormData(product);
+};
+
+// Función para actualizar un producto
+const handleUpdateProduct = async () => {
+  const requiredFields = ['nombre', 'descripcion', 'imagen', 'categoria_id', 'composicion', 'contenido_neto', 'usos', 'advertencias', 'cantidad_producto', 'precio_unitario'];
   const isFormValid = requiredFields.every(field => formData[field]);
 
   if (!isFormValid) {
@@ -90,125 +149,69 @@ const handleRegisterProduct = async () => {
   }
 
   try {
-    await axios.post('http://localhost:4000/Products', formData);
+    await axios.put('http://localhost:4001/actualizarProducto', { 
+      ...formData, 
+      id_producto: currentProduct.id_producto // Asegúrate de pasar el ID del producto que se está editando
+    });
     fetchProductos(); // Actualizar la lista de productos
     resetForm();
-    Swal.fire({
-      title: 'Producto registrado!!',
-      text: `El producto "${formData.nombre}" se registró`,
-      icon: 'success',
-      showConfirmButton: false,
-      timer: 1000, // Duración de 1 segundo
-    });
-    // Si necesitas redireccionar, utiliza react-router-dom
-    // navigate('/productos');
-  } catch (error) {
-    console.error('Error registering product:', error);
-    Swal.fire({
-      title: 'Error',
-      text: 'No se pudo registrar el producto.',
-      icon: 'error',
-      showConfirmButton: false,
-      timer: 2000, // Duración de 2 segundos
-    });
-  }
-};
-
-// Función para editar un producto
-const handleEditProduct = (product) => {
-  setIsEditing(true);
-  setCurrentProduct(product);
-  setFormData(product);
-};
-
-// Función para actualizar un producto
-const handleUpdateProduct = async () => {
-  // Validar campos requeridos
-  const requiredFields = ['nombre', 'descripcion', 'imagen', 'categoria', 'composicion', 'contenido_neto', 'usos', 'advertencias', 'cantidad', 'precio_unitario']; // Ajusta según los campos necesarios
-  const isFormValid = requiredFields.every(field => formData[field]);
-
-  if (!isFormValid) {
-    Swal.fire({
-      title: 'Complete todos los campos requeridos',
-      text: 'Por favor, asegúrese de que todos los campos obligatorios estén completos.',
-      icon: 'warning',
-      showConfirmButton: false,
-      timer: 1000, // Duración de 1 segundo
-    });
-    return;
-  }
-
-  try {
-    await axios.put(`http://localhost:4000/Products/${currentProduct.id}`, formData);
-    fetchProductos(); // Actualizar la lista de productos
-    resetForm();
-    setIsEditing(false);
     Swal.fire({
       title: 'Producto actualizado!!',
       text: `El producto "${formData.nombre}" se actualizó`,
       icon: 'success',
       showConfirmButton: false,
-      timer: 1000, // Duración de 1 segundo
+      timer: 1000, 
     });
-    // Si necesitas redireccionar, utiliza react-router-dom
-    // navigate('/productos');
   } catch (error) {
     console.error('Error updating product:', error);
     Swal.fire({
       title: 'Error',
       text: 'No se pudo actualizar el producto.',
       icon: 'error',
-      timer: 2000, // Duración de 2 segundos
+      showConfirmButton: false,
+      timer: 2000, 
     });
   }
 };
 
-
   // Descontinuar producto
-const handleSetInactiveProduct = async (id) => {
-  const confirmDescontinuar = await Swal.fire({
-    title: '¿Estás seguro?',
-    text: 'El producto será marcado como descontinuado.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Sí, descontinuar',
-    cancelButtonText: 'Cancelar',
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
+  // Función para descontinuar un producto
+const handleSetInactiveProduct = async (id_producto) => {
+  // Advertencia de confirmación
+  const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: "No podrás revertir esto.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, descontinuar',
+      cancelButtonText: 'Cancelar'
   });
 
-  if (confirmDescontinuar.isConfirmed) {
-    try {
-      // Obtener el producto actual
-      const response = await axios.get(`http://localhost:4000/Products/${id}`);
-      const productoActual = response.data;
-      const productoActualizado = { ...productoActual, estado: 'descontinuado' }; // Cambiar el estado
-
-      // Actualizar el producto en la API
-      await axios.put(`http://localhost:4000/Products/${id}`, productoActualizado);
-      
-      Swal.fire({
-        title: '¡Descontinuado!',
-        text: 'Producto marcado como descontinuado exitosamente.',
-        icon: 'success',
-        showConfirmButton: false,
-        timer: 1000, // Duración de 1 segundo
-      }).then(() => {
-        fetchProductos(); // Actualizar la lista de productos
-      });
-    } catch (error) {
-      console.error('Error descontinuando el producto:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Error al descontinuar el producto.',
-        icon: 'error',
-        showConfirmButton: false,
-        timer: 1000, // Duración de 1 segundo
-      });
-    }
+  if (result.isConfirmed) {
+      try {
+          await axios.put('http://localhost:4001/descontinuarProducto', { id_producto });
+          fetchProductos(); // Actualizar la lista de productos
+          Swal.fire({
+              title: 'Producto descontinuado',
+              text: 'El producto se ha marcado como descontinuado.',
+              icon: 'success',
+              showConfirmButton: false,
+              timer: 1000,
+          });
+      } catch (error) {
+          console.error('Error descontinuando producto:', error);
+          Swal.fire({
+              title: 'Error',
+              text: 'No se pudo descontinuar el producto.',
+              icon: 'error',
+              showConfirmButton: false,
+              timer: 2000,
+          });
+      }
   }
 };
-
   // Filtrar productos basados en el término de búsqueda y en la categoría
   const filteredProducts = productos
     .filter((producto) => 
@@ -263,7 +266,7 @@ const handleSetInactiveProduct = async (id) => {
       usos: '',
       advertencias: '',
       precio_unitario: '',
-      cantidad:'',
+      cantidad_producto:'',
       estado:'disponible'
     });
     setCurrentProduct(null);
@@ -328,8 +331,7 @@ const handleSetInactiveProduct = async (id) => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title" id="registroProductoModalLabel">Registrar Producto</h5>
-                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-              </div>
+                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" /></div>
               <div className="modal-body">
                 <form>
                   {/* Formulario de registro */}
@@ -347,21 +349,21 @@ const handleSetInactiveProduct = async (id) => {
                       type="text" className="form-control" id="imagen" value={formData.imagen} onChange={handleInputChange} />
                   </div>
                   <div className="mb-3">
-                  <label className="form-label"> Categoria</label>
-
-                    <select
-                      className="form-control"
-                      id="categoria"
-                      value={formData.categoria}
-                      onChange={handleInputChange}
-                    >
-                      <option selected disabled value="">Selecciona una categoría</option>
-                      <option value="Cuidado de la Ropa">Cuidado de la Ropa</option>
-                      <option value="Hogar y Limpieza">Hogar y Limpieza</option>
-                      <option value="Cuidado de Pisos">Cuidado de Pisos</option>
-                      <option value="Desinfectantes">Desinfectantes</option>
-                    </select>
-                  </div>
+            <label className="form-label">Categoría</label>
+            <select
+              className="form-control"
+              id="categoria_id" // Cambiado a categoria_id
+              value={formData.categoria_id}
+              onChange={handleInputChange}
+            >
+              <option selected disabled value="">Selecciona una categoría</option>
+              {categorias.map((categoria) => (
+                <option key={categoria.id_categoria} value={categoria.id_categoria}>
+                  {categoria.nombre_categoria}
+                </option>
+              ))}
+            </select>
+          </div>
                   <div className="mb-3">
                     <label htmlFor="composicion" className="form-label">Composición</label>
                     <input type="text" className="form-control" id="composicion" placeholder="Ingrese composición del producto" value={formData.composicion} onChange={handleInputChange} />
@@ -380,7 +382,7 @@ const handleSetInactiveProduct = async (id) => {
                   </div>
                   <div className="mb-3">
                     <label htmlFor="cantidad" className="form-label">Cantidad</label>
-                    <input type="number" className="form-control" id="cantidad" placeholder="Ingrese la cantidad a ingresar" value={formData.cantidad} onChange={handleInputChange} />
+                    <input type="number" className="form-control" id="cantidad_producto" placeholder="Ingrese la cantidad a ingresar" value={formData.cantidad_producto} onChange={handleInputChange} />
                   </div>
                   <div className="mb-3">
                     <label htmlFor="precio_unitario" className="form-label">Precio Unitario</label>
@@ -426,7 +428,7 @@ const handleSetInactiveProduct = async (id) => {
                     <td>
                       <img src={product.imagen} alt="producto" style={{ width: '100px', height: 'auto' }} />
                     </td>
-                    <td>{product.id}</td>
+                    <td>{product.id_producto}</td>
                     <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {product.nombre}
                     </td>
@@ -448,7 +450,7 @@ const handleSetInactiveProduct = async (id) => {
                     <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {product.advertencias}
                     </td>
-                    <td>{product.cantidad}</td>
+                    <td>{product.cantidad_producto}</td>
                     <td>{product.precio_unitario}</td>
                     <td>{product.estado}</td>
                     <td>
@@ -468,7 +470,7 @@ const handleSetInactiveProduct = async (id) => {
                         type="button"
                         className="btn-sm"
                         style={{ background: 'none', border: 'none' }}
-                        onClick={() => handleSetInactiveProduct(product.id)}
+                        onClick={() => handleSetInactiveProduct(product.id_producto)}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -503,7 +505,7 @@ const handleSetInactiveProduct = async (id) => {
                     <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {product.advertencias}
                     </td>
-                    <td>{product.cantidad}</td>
+                    <td>{product.cantidad_producto}</td>
                     <td>{product.precio_unitario}</td>
                     <td>{product.estado}</td>
                     <td>
@@ -523,7 +525,7 @@ const handleSetInactiveProduct = async (id) => {
                         type="button"
                         className="btn-sm"
                         style={{ background: 'none', border: 'none' }}
-                        onClick={() => handleSetInactiveProduct(product.id)}
+                        onClick={() => handleSetInactiveProduct(product.id_producto)}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>

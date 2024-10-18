@@ -16,7 +16,7 @@ const Bienvenida = () => {
 
   const fetchProductos = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/Products');
+      const response = await axios.get('http://localhost:4001/Producto');
       const productosDisponibles = response.data.filter(producto => producto.estado === 'disponible');
       setProductos(productosDisponibles);
       setSearchResults(productosDisponibles); // Inicializa los resultados de búsqueda con los productos disponibles

@@ -63,7 +63,10 @@ const UsuariosAdmin = () => {
   )
   .filter((user) => {
     if (userTypeFilter === 'UsuariosAdmin') {
-      return user.rol !== 'Cliente';
+      return user.rol !== 'cliente';
+    }
+    else if(userTypeFilter === 'Cliente') {
+      return user.rol === 'cliente';
     }
     return userTypeFilter === 'todos' || user.rol === userTypeFilter;
   });
@@ -130,9 +133,7 @@ const handleNameKeyPress = (e) => {
 
 
   // registro de usuarios admin
-
   const handleSaveUser = async () => {
-    // Validar campos requeridos
     const requiredFields = ['nombres', 'apellidos', 'telefono', 'correo_electronico', 'tipo_doc', 'num_doc', 'contrasena', 'rol'];
     const validateForm = requiredFields.every(field => formData[field]);
   
@@ -202,11 +203,8 @@ const handleNameKeyPress = (e) => {
           const response = await axios.post('http://localhost:4001/registrarUser', {
               ...formData,
               estado: 'Pendiente',
-              contrasena: hashedPassword // Cambia el estado a pendiente
+              contrasena: hashedPassword
           });
-
-
-          // Mostrar mensaje de éxito tras el registro
           await Swal.fire({
               title: 'Revisa tu correo electrónico',
               text: 'Para activar tu cuenta.',
@@ -237,16 +235,15 @@ const handleNameKeyPress = (e) => {
       }
   }
 };
-  // Edit user
   const handleEditUser = (user) => {
     setIsEditing(true);
     setCurrentUser(user);
     setFormData(user);
   };
 
-  // Set user as inactive
-  const handleSetInactiveUser = async (id) => {
-    const confirmInactive = await Swal.fire({
+// Inactivacion usuario
+const handleSetInactiveUser = async (id_usuario) => {
+  const confirmInactive = await Swal.fire({
       title: '¿Estás seguro?',
       text: 'El usuario será marcado como inactivo.',
       icon: 'warning',
@@ -255,35 +252,36 @@ const handleNameKeyPress = (e) => {
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-    });
+  });
 
-    if (confirmInactive.isConfirmed) {
+  if (confirmInactive.isConfirmed) {
       try {
-        const response = await axios.get(`http://localhost:4001/usuario/${id}`);
-        const usuarioActual = response.data;
-        const usuarioActualizado = { ...usuarioActual, estado: 'Inactivo' };
-        await axios.put(`http://localhost:4001/cambiarEstadoUsuario/${id}`, usuarioActualizado);
-        Swal.fire({
-          title: '¡Inactivado!',
-          text: 'Usuario marcado como inactivo exitosamente.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false
-        }).then(() => {
-          fetchUsers();
-        });
+          // Llamar al procedimiento almacenado para cambiar el estado
+          await axios.put(`http://localhost:4001/cambiarEstadoUsuario/${id_usuario}`, {
+              estado: 'inactivo' // Cambiar a 'inactivo'
+          });
+
+          Swal.fire({
+              title: '¡Inactivado!',
+              text: 'Usuario marcado como inactivo exitosamente.',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false
+          }).then(() => {
+              fetchUsers(); // Volver a cargar la lista de usuarios
+          });
       } catch (error) {
-        console.error('Error setting user inactive:', error);
-        Swal.fire({
-          title: 'Error!',
-          text: 'Error al inactivar el usuario.',
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#d33',
-        });
+          console.error('Error setting user inactive:', error);
+          Swal.fire({
+              title: 'Error!',
+              text: 'Error al inactivar el usuario.',
+              icon: 'error',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#d33',
+          });
       }
-    }
-  };
+  }
+};
 
   // Reset form to initial state
   const resetForm = () => {
@@ -370,7 +368,7 @@ const handleKeyPress = (e) => {
     <button
       type="button"
       className="button-style"
-      onClick={() => handleSetInactiveUser(user.id)}
+      onClick={() => handleSetInactiveUser(user.id_usuario)}
     >
       <FontAwesomeIcon icon={faTrash} />
     </button>
