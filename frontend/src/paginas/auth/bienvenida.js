@@ -11,9 +11,12 @@ const Bienvenida = () => {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [contadorCarrito, setContadorCarrito] = useState(0); // Estado para el contador del carrito
+  const [sortType, setSortType] = useState('');
   
   
 
+  
+  
   const fetchProductos = async () => {
     try {
       const response = await axios.get('http://localhost:4001/Producto');
@@ -32,7 +35,6 @@ const Bienvenida = () => {
     const carritoGuardado = JSON.parse(localStorage.getItem('carrito')) || [];
     setContadorCarrito(carritoGuardado.reduce((total, producto) => total + producto.cantidad, 0));
   }, []);
-  const [sortType, setSortType] = useState(''); // Estado para el tipo de ordenamiento seleccionado
 
 
   const productosFiltrados = categoriaSeleccionada
@@ -58,13 +60,15 @@ const handleSort = (type) => {
   setSearchResults(sortedProducts);
 };
 
+
+
   const handleCategoriaClick = (categoria) => {
     setCategoriaSeleccionada(categoria);
   };
 
-  const obtenerStockDelProducto = async (id) => {
+  const obtenerStockDelProducto = async (id_producto) => {
     try {
-      const response = await axios.get(`http://localhost:4000/Products/${id}`);
+      const response = await axios.get(`http://localhost:4001/productoStock/${id_producto}`);
       return parseInt(response.data.cantidad, 10); // Devuelve la cantidad disponible del producto
     } catch (error) {
       console.error('Error al obtener el stock del producto:', error);
@@ -74,27 +78,27 @@ const handleSort = (type) => {
 
   const agregarAlCarrito = async (producto) => {
     const carritoGuardado = JSON.parse(localStorage.getItem('carrito')) || [];
-    const productoEnCarrito = carritoGuardado.find(p => p.id === producto.id);
-
+    const productoEnCarrito = carritoGuardado.find(p => p.id_producto === producto.id_producto); // Cambia id por id_producto
+  
     // Obtén el stock del producto
-    const stock = await obtenerStockDelProducto(producto.id);
-
+    const stock = await obtenerStockDelProducto(producto.id_producto); // Cambia id por id_producto
+  
     if (productoEnCarrito) {
       // Verificar si la nueva cantidad no excede el stock disponible
       if (productoEnCarrito.cantidad + 1 > stock) {
         Swal.fire({
           title: '¡Cantidad máxima alcanzada!',
-          text: `Alcanzaste el maximo de cantidad del producto ${producto.nombre} no puedes llevar mas de ${stock}.`,
+          text: `Alcanzaste el máximo de cantidad del producto ${producto.nombre}, no puedes llevar más de ${stock}.`,
           icon: 'error',
           timer: 2000,
           showConfirmButton: false
         });
         return;
       }
-
+  
       // Actualizar la cantidad en el carrito
       const nuevoCarrito = carritoGuardado.map(p =>
-        p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
+        p.id_producto === producto.id_producto ? { ...p, cantidad: p.cantidad + 1 } : p // Cambia id por id_producto
       );
       localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
     } else {
@@ -109,15 +113,14 @@ const handleSort = (type) => {
         });
         return;
       }
-
+  
       // Agregar el producto al carrito con cantidad inicial de 1
       const nuevoCarrito = [...carritoGuardado, { ...producto, cantidad: 1 }];
       localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
     }
-
+  
     setContadorCarrito(prev => prev + 1); // Incrementa el contador cuando se agrega un producto
-
-
+  
     Swal.fire({
       title: '¡Producto agregado!',
       text: `${producto.nombre} ha sido agregado al carrito.`,
@@ -125,12 +128,11 @@ const handleSort = (type) => {
       timer: 2000,
       showConfirmButton: false
     });
-
+  
     console.log('Carrito después de agregar:', JSON.parse(localStorage.getItem('carrito')));
   };
-
   const ProductCard = ({ producto }) => (
-    <div className="col-md-3" key={producto.id}>
+    <div className="col-md-3" key={producto.id_producto}>
       <div className="card product-card">
         <img 
           src={producto.imagen} 

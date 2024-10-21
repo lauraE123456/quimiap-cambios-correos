@@ -12,17 +12,17 @@ const DomicilioAdmin = () => {
   const [itemsPerPage] = useState(10); // Número de domicilios por página
 
   // Función para obtener domicilios de la API
-  const fetchDomicilios = async () => {
+  const fetchDomiciliosVentasUsuarios = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/domicilio');
+      const response = await axios.get('http://localhost:4001/domiciliosVentasUsuarios');
       setDomicilios(response.data);
     } catch (error) {
-      console.error('Error fetching domicilios:', error);
+      console.error('Error fetching domicilios, ventas y usuarios:', error);
     }
   };
 
   useEffect(() => {
-    fetchDomicilios();
+    fetchDomiciliosVentasUsuarios();
   }, []);
 
   // Función para actualizar el estado del domicilio
@@ -106,22 +106,28 @@ const DomicilioAdmin = () => {
               <th>Ciudad</th> {/* Nueva columna para la ciudad */}
               <th>Fecha de entrega</th>
               <th>Estado</th> {/* Columna de estado */}
+              <th>ID Venta</th> {/* Nueva columna para mostrar el ID de la venta */}
+              <th>Cliente</th> {/* Nueva columna para mostrar el nombre del cliente */}
+              <th>Precio Total</th> {/* Nueva columna para mostrar el precio total de la venta */}
               <th>Acción</th>
             </tr>
           </thead>
           <tbody>
             {currentDomicilios.length === 0 ? (
               <tr>
-                <td colSpan="6">No hay domicilios disponibles.</td>
+                <td colSpan="9">No hay domicilios disponibles.</td>
               </tr>
             ) : (
               currentDomicilios.map((domicilio) => (
-                <tr key={domicilio.id}>
-                  <td>{domicilio.id}</td>
+                <tr key={domicilio.id_domicilio}>
+                  <td>{domicilio.id_domicilio}</td>
                   <td>{domicilio.direccion}</td>
                   <td>{domicilio.ciudad}</td> {/* Mostrar la ciudad */}
                   <td>{domicilio.fecha_entrega}</td>
-                  <td>{domicilio.estado}</td> {/* Mostrar el estado */}
+                  <td>{domicilio.estado_entrega}</td> {/* Mostrar el estado */}
+                  <td>{domicilio.id_venta}</td> {/* Mostrar el ID de la venta */}
+                  <td>{`${domicilio.nombres} ${domicilio.apellidos}`}</td> {/* Mostrar el nombre del cliente */}
+                  <td>{domicilio.precio_total}</td> {/* Mostrar el precio total */}
                   <td>
                     {domicilio.estado !== 'Entregado' && (
                       <button

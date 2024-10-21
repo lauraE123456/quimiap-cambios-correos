@@ -4,54 +4,33 @@ import Swal from 'sweetalert2';
 import Header4 from '../../componentes/header4';
 
 const VentasDomiciliario = () => {
-  const [ventas, setVentas] = useState([]);
+  const [ventasDomicilios, setVentasDomicilios] = useState([]);
   const [productos, setProductos] = useState([]);
   const [detallesVenta, setDetallesVenta] = useState({});
-  const [domicilios, setDomicilios] = useState([]);
-  const [domiciliarioId, setDomiciliarioId] = useState(null);
+  const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [fechaFiltro, setFechaFiltro] = useState('');
   const [clienteIdFiltro, setClienteIdFiltro] = useState('');
-  const [ventaSeleccionada, setVentaSeleccionada] = useState(null); // Estado para la venta seleccionada
 
   useEffect(() => {
     const id = sessionStorage.getItem('userId');
-    setDomiciliarioId(id);
-    fetchDomicilios(id);
-    fetchVentas();
+    fetchDomiciliosConVentas(id);
     fetchProductos();
   }, []);
 
-  // Función para obtener domicilios de la API
-  const fetchDomicilios = async (domiciliarioId) => {
+  // Función para obtener domicilios y ventas del domiciliario de la API
+  const fetchDomiciliosConVentas = async (domiciliarioId) => {
     try {
-      const response = await axios.get('http://localhost:4000/domicilio');
-      const domiciliosFiltrados = response.data.filter(domicilio => domicilio.domiciliario_id === domiciliarioId);
-      setDomicilios(domiciliosFiltrados);
-      // Filtrar ventas relacionadas con los domicilios
-      const ventasFiltradas = await Promise.all(domiciliosFiltrados.map(async (domicilio) => {
-        const ventaResponse = await axios.get(`http://localhost:4000/Sales/${domicilio.venta_id}`);
-        return ventaResponse.data;
-      }));
-      setVentas(ventasFiltradas);
+      const response = await axios.get(`http://localhost:4001/domicilios-con-ventas?domiciliario_id=${domiciliarioId}`);
+      setVentasDomicilios(response.data);
     } catch (error) {
-      console.error('Error fetching domicilios:', error);
-    }
-  };
-
-  // Función para obtener ventas de la API
-  const fetchVentas = async () => {
-    try {
-      const response = await axios.get('http://localhost:4000/Sales');
-      setVentas(response.data);
-    } catch (error) {
-      console.error('Error fetching ventas:', error);
+      console.error('Error fetching domicilios con ventas:', error);
     }
   };
 
   // Función para obtener productos de la API
   const fetchProductos = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/Products');
+      const response = await axios.get('http://localhost:4001/Producto');
       setProductos(response.data);
     } catch (error) {
       console.error('Error fetching productos:', error);
@@ -61,71 +40,54 @@ const VentasDomiciliario = () => {
   // Función para obtener detalles de venta de la API
   const fetchDetallesVenta = async (ventaId) => {
     try {
-      const response = await axios.get(`http://localhost:4000/SaleDetails?venta_id=${ventaId}`);
+      const response = await axios.get(`http://localhost:4001/SaleDetails?venta_id=${ventaId}`);
       setDetallesVenta(prev => ({
         ...prev,
         [ventaId]: response.data
       }));
-      setVentaSeleccionada(ventaId); // Actualizar la venta seleccionada
+      setVentaSeleccionada(ventaId);
     } catch (error) {
       console.error('Error fetching sale details:', error);
     }
   };
 
-  // Función para manejar el cambio en el input de fecha
-  const handleFechaChange = (e) => {
-    setFechaFiltro(e.target.value);
-  };
-
-  // Función para manejar el cambio en el input de ID de cliente
-  const handleClienteIdChange = (e) => {
-    setClienteIdFiltro(e.target.value);
-  };
-
-  // Función para filtrar las ventas cuando se hace clic en el botón de búsqueda
+  // Función para filtrar las ventas
   const filtrarVentas = () => {
-    const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
+    let ventasFiltradas = ventasDomicilios;
 
-    let ventasFiltradas = ventas;
-
-    // Filtrar por fecha si se ingresó una
-    if (fechaFiltro && regexFecha.test(fechaFiltro)) {
-      ventasFiltradas = ventasFiltradas.filter((venta) =>
+    // Filtrar por fecha
+    if (fechaFiltro) {
+      ventasFiltradas = ventasFiltradas.filter(venta => 
         venta.fecha_venta.startsWith(fechaFiltro)
       );
-    } else if (fechaFiltro && !regexFecha.test(fechaFiltro)) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Formato de fecha incorrecto',
-        text: 'Use el formato YYYY-MM-DD',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-      });
-      return;
     }
 
-    // Filtrar por cliente ID si se ingresó uno
+    // Filtrar por ID de cliente
     if (clienteIdFiltro) {
-      ventasFiltradas = ventasFiltradas.filter((venta) =>
+      ventasFiltradas = ventasFiltradas.filter(venta => 
         venta.cliente_id === clienteIdFiltro
       );
     }
 
-    setVentas(ventasFiltradas);
+    setVentasDomicilios(ventasFiltradas);
   };
 
   const handleVerDetalles = (ventaId) => {
+    // Solo obtiene los detalles si no se están mostrando ya
     if (ventaId !== ventaSeleccionada) {
       fetchDetallesVenta(ventaId);
+    } else {
+      // Si ya se está mostrando, restablece la selección
+      setVentaSeleccionada(null);
     }
   };
 
   // Función para obtener el nombre del producto y su imagen a partir del id
   const getProducto = (productoId) => {
-    return productos.find(p => p.id === productoId) || { nombre: 'Desconocido', imagen_url: '' };
+    const producto = productos.find(p => p.id_producto === productoId);
+    console.log('Producto encontrado:', producto); // Debugging
+    return producto || { nombre: 'Desconocido', imagen_url: '' };
   };
-
   return (
     <div>
       <Header4 />
@@ -141,10 +103,9 @@ const VentasDomiciliario = () => {
               type="text"
               id="fechaFiltro"
               className="form-control me-2"
-              style={{ width: '200px' }}  // Ajusta el tamaño del input
               placeholder="YYYY-MM-DD"
               value={fechaFiltro}
-              onChange={handleFechaChange}
+              onChange={e => setFechaFiltro(e.target.value)}
             />
           </div>
 
@@ -154,17 +115,15 @@ const VentasDomiciliario = () => {
               type="text"
               id="clienteIdFiltro"
               className="form-control me-2"
-              style={{ width: '200px' }}  // Ajusta el tamaño del input
               placeholder="ID de Cliente"
               value={clienteIdFiltro}
-              onChange={handleClienteIdChange}
+              onChange={e => setClienteIdFiltro(e.target.value)}
             />
           </div>
 
-          {/* Botón para filtrar las ventas */}
           <button type="button" className="btn btn-success mb-3" onClick={filtrarVentas}>Buscar</button>
 
-          {/* Tabla de ventas */}
+          {/* Tabla de domicilios y ventas */}
           <table className="table table-striped mt-4">
             <thead>
               <tr>
@@ -176,17 +135,17 @@ const VentasDomiciliario = () => {
               </tr>
             </thead>
             <tbody>
-              {ventas.map((venta) => (
-                <tr key={venta.id}>
-                  <td>{venta.id}</td>
-                  <td>{venta.fecha_venta}</td>
-                  <td>{venta.precio_total}</td>
-                  <td>{venta.cliente_id}</td>
+              {ventasDomicilios.map((ventaDomicilio) => (
+                <tr key={ventaDomicilio.id_venta}>
+                  <td>{ventaDomicilio.id_venta}</td>
+                  <td>{ventaDomicilio.fecha_venta}</td>
+                  <td>{ventaDomicilio.precio_total}</td>
+                  <td>{ventaDomicilio.cliente_id}</td>
                   <td>
                     <button
                       type="button"
                       className="btn btn-success"
-                      onClick={() => handleVerDetalles(venta.id)}
+                      onClick={() => handleVerDetalles(ventaDomicilio.id_venta)}
                     >
                       Ver Detalles
                     </button>
@@ -214,13 +173,13 @@ const VentasDomiciliario = () => {
                   {detallesVenta[ventaSeleccionada].map((detalle) => {
                     const producto = getProducto(detalle.producto_id);
                     return (
-                      <tr key={detalle.id}>
+                      <tr key={detalle.producto_id}>
                         <td>{detalle.producto_id}</td>
                         <td>{producto.nombre}</td>
                         <td>
                           <img src={producto.imagen} alt={producto.nombre} style={{ width: '80px', height: '80px' }} />
                         </td>
-                        <td>{detalle.cantidad}</td>
+                        <td>{detalle.cantidad_total}</td>
                         <td>{detalle.precio_unitario}</td>
                       </tr>
                     );

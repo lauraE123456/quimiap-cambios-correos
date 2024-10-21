@@ -41,12 +41,12 @@ function App() {
           } />
           <Route path='/productos.js' exact element={<Productos />} />
           <Route path='/ventas_admin.js' exact element={
-            <PrivateRoute allowedRoles={['Gerente']}>
+            <PrivateRoute allowedRoles={['gerente']}>
               <VentasAdmin />
             </PrivateRoute>
           } />
           <Route path='/domicilios_admin.js' exact element={
-            <PrivateRoute allowedRoles={['Gerente']}>
+            <PrivateRoute allowedRoles={['gerente']}>
               <DomicilioAdmin />
             </PrivateRoute>
           } />
@@ -79,9 +79,7 @@ function App() {
           
           <Route path='/venta_cliente.js' exact element={<VentasCliente />} />
           <Route path='/MisVentas.js' exact element={
-            <PrivateRoute allowedRoles={['Cliente']}>
               <MisVentas />
-            </PrivateRoute>
           } />
           <Route path='/inicio_registro.js' exact element={<Inicio_registro />} />
           {/* Ruta de acceso no autorizado */}

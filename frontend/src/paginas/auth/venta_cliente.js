@@ -28,7 +28,7 @@ const VentasCliente = () => {
   useEffect(() => {
     const fetchCliente = async () => {
       try {
-        const response = await axios.get(`http://localhost:4000/Users/${clienteId}`);
+        const response = await axios.get(`http://localhost:4001/usuario/${clienteId}`);
         setCliente(response.data);
       } catch (error) {
         console.error('Error al obtener datos del cliente:', error);
@@ -43,90 +43,68 @@ const VentasCliente = () => {
     fetchCarrito();
   }, [clienteId, carritoItems]);
 
-  const actualizarCantidadProducto = async (productoId, cantidadComprada) => {
+  const actualizarCantidadProducto = async (id_producto, cantidadComprada) => {
     try {
-      const response = await axios.get(`http://localhost:4000/Products/${productoId}`);
+      const response = await axios.get(`http://localhost:4001/Producto/${id_producto}`);
       const productoActual = response.data;
-      const nuevaCantidad = productoActual.cantidad - cantidadComprada;
-      const estadoProducto = nuevaCantidad <= 0 ? 'Agotado' : productoActual.estado;
+      
+      const nuevaCantidad = productoActual.cantidad_producto - cantidadComprada; // Cambiado a cantidad_producto
+      const estadoProducto = nuevaCantidad <= 0 ? 'agotado' : productoActual.estado;
 
-      await axios.put(`http://localhost:4000/Products/${productoId}`, {
+
+      await axios.put(`http://localhost:4001/Producto/${id_producto}`, {
         ...productoActual,
-        cantidad: nuevaCantidad,
+        cantidad_producto: nuevaCantidad,
         estado: estadoProducto
       });
     } catch (error) {
       console.error('Error al actualizar la cantidad del producto:', error);
     }
-  };
+};
 
-  const verificarCantidadYRegistrarVenta = async () => {
-    for (const producto of carrito) {
-      try {
-        const response = await axios.get(`http://localhost:4000/Products/${producto.id}`);
-        const productoActual = response.data;
-        if (productoActual.cantidad < producto.cantidad) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Producto Agotado',
-            text: `La cantidad del producto "${producto.nombre}" excede la cantidad disponible.`,
-          });
-          return false; // Detiene el proceso si hay un producto agotado
-        }
-      } catch (error) {
-        console.error('Error al verificar la cantidad del producto:', error);
-      }
-    }
-    return true; // Continúa si todos los productos están disponibles
-  };
 
   const asignarDomiciliario = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/Users');
+      const response = await axios.get('http://localhost:4001/usuariosDomiciliarios');
       const usuarios = response.data;
+  
+      // Filtramos los domiciliarios
       const domiciliariosDisponibles = usuarios.filter(user => user.rol === 'domiciliario');
   
-      if (domiciliariosDisponibles.length > 0) {
-        // Obtén el índice del próximo domiciliario desde el almacenamiento local
-        let index = parseInt(localStorage.getItem('domiciliarioIndex')) || 0;
-        const domiciliario = domiciliariosDisponibles[index];
-        
-        // Actualiza el índice para la próxima asignación
-        index = (index + 1) % domiciliariosDisponibles.length;
-        localStorage.setItem('domiciliarioIndex', index);
-        
-        return domiciliario.id;
-      } else {
+      console.log('Domiciliarios disponibles:', domiciliariosDisponibles);
+  
+      if (domiciliariosDisponibles.length === 0) {
         throw new Error('No hay domiciliarios disponibles');
       }
+  
+      // Selección aleatoria de un domiciliario disponible
+      const randomIndex = Math.floor(Math.random() * domiciliariosDisponibles.length);
+      return domiciliariosDisponibles[randomIndex].id_usuario; // Cambia a id_usuario
     } catch (error) {
       console.error('Error al asignar domiciliario:', error);
-      return null;
+      return null; // Retorna null en caso de error
     }
   };
   
-  
 
   const handleSubmit = async (e) => {
+    console.log('handleSubmit fue llamado'); // Agrega esto
     e.preventDefault();
   
-    const disponible = await verificarCantidadYRegistrarVenta();
-    if (!disponible) {
-      return;
-    }
-  
-    const estadoVenta = 'Completada';
     const ventaData = {
-      fecha_venta: fechaVenta,
       metodo_pago: metodoPago,
       precio_total: precioTotal,
-      estado: estadoVenta,
-      cliente_id: clienteId,
       correo_electronico: correo_electronico,
+      cliente_id: clienteId,
+      carrito: carrito, 
     };
+    
+    console.log('Datos de venta a enviar:', ventaData); // Verifica los datos de la venta
   
     try {
       const domiciliarioId = mostrarDomicilio ? await asignarDomiciliario() : null;
+      console.log('ID de domiciliario asignado:', domiciliarioId); // Verifica el ID asignado
+      
       if (mostrarDomicilio && !domiciliarioId) {
         Swal.fire({
           icon: 'error',
@@ -136,27 +114,10 @@ const VentasCliente = () => {
         return;
       }
   
-      const ventaResponse = await axios.post('http://localhost:4000/Sales', ventaData);
-      const ventaId = ventaResponse.data.id;
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Notificación Enviada',
-        text: 'Se ha enviado una notificación al correo.',
-        timer: 100,
-        showConfirmButton: false,
-      });
-  
-      for (const producto of carrito) {
-        const detalleData = {
-          venta_id: ventaId,
-          producto_id: producto.id,
-          cantidad: producto.cantidad,
-          precio_unitario: producto.precio_unitario,
-        };
-        await axios.post('http://localhost:4000/SaleDetails', detalleData);
-        await actualizarCantidadProducto(producto.id, producto.cantidad);
-      }
+      // Envía la información de la venta junto con los detalles
+      const ventaResponse = await axios.post('http://localhost:4001/registrarVenta', ventaData);
+      const ventaId = ventaResponse.data.id_venta; // Asegúrate de que esto coincida con tu respuesta
+      console.log('Venta registrada con ID:', ventaId); // Verifica el ID de la venta registrada
   
       if (mostrarDomicilio) {
         const domicilioData = {
@@ -164,21 +125,14 @@ const VentasCliente = () => {
           direccion: domicilio.direccion,
           ciudad: domicilio.ciudad,
           codigo_postal: domicilio.codigo_postal,
-          fecha_entrega: domicilio.fecha_entrega, 
-          estado: 'Pendiente',
+          fecha_entrega: domicilio.fecha_entrega,
+          estado_entrega: 'pendiente', // Asegúrate de incluir esto
           domiciliario_id: domiciliarioId,
         };
-        await axios.post('http://localhost:4000/domicilio', domicilioData);
   
-        await axios.put(`http://localhost:4000/Users/${clienteId}`, {
-          ...cliente,
-          domicilio: {
-            direccion: domicilio.direccion,
-            ciudad: domicilio.ciudad,
-            codigo_postal: domicilio.codigo_postal,
-            fecha_entrega: domicilio.fecha_entrega, 
-          }
-        });
+        console.log('Datos de domicilio a enviar:', domicilioData); // Agrega esta línea
+  
+        await axios.post('http://localhost:4001/registrarDomicilio', domicilioData);
       }
   
       Swal.fire({
@@ -221,6 +175,7 @@ const VentasCliente = () => {
   useEffect(() => {
     setPrecioTotal(calcularTotal());
   }, [carrito]);
+
 
   const handleFechaEntregaChange = (e) => {
     const fechaSeleccionada = new Date(e.target.value);
@@ -267,7 +222,7 @@ const VentasCliente = () => {
                 </thead>
                 <tbody>
                   {carrito.map((producto) => (
-                    <tr key={producto.id}>
+                    <tr key={producto.id_producto}>
                       <td>{producto.nombre}</td>
                       <td>${producto.precio_unitario}</td>
                       <td>{producto.cantidad}</td>

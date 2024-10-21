@@ -6,32 +6,46 @@ import Swal from 'sweetalert2';
 
 const CarritoPage = () => {
   const [carrito, setCarrito] = useState([]);
-  const [contadorCarrito, setContadorCarrito] = useState(0); // Estado para el contador del carrito
+  const [contadorCarrito, setContadorCarrito] = useState(0);
   const navigate = useNavigate(); 
 
   useEffect(() => {
     const carritoGuardado = JSON.parse(localStorage.getItem('carrito')) || [];
     setCarrito(carritoGuardado);
-    actualizarContador(carritoGuardado); // Inicializa el contador con los productos en el carrito
+    actualizarContador(carritoGuardado);
   }, []);
 
-  // Función para actualizar el contador
   const actualizarContador = (nuevoCarrito) => {
     const totalProductos = nuevoCarrito.reduce((total, producto) => total + producto.cantidad, 0);
     setContadorCarrito(totalProductos);
   };
 
-  // Función para aumentar la cantidad del producto
   const aumentarCantidad = async (id) => {
     try {
-      // Obtén el stock actual del producto desde la API
-      const response = await fetch(`http://localhost:4000/Products/${id}`);
+      const response = await fetch(`http://localhost:4001/productoStock/${id}`);
       const producto = await response.json();
-      const productoStock = parseInt(producto.cantidad, 10); // Asume que la API devuelve el stock
+        
+      // Asegúrate de que 'cantidad_producto' existe en la respuesta
+      const productoStock = parseInt(producto.cantidad, 10);
+  
+      // Verifica que productoStock sea un número
+      if (isNaN(productoStock)) {
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo obtener la cantidad de stock disponible.',
+          icon: 'error',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        return;
+      }
   
       const nuevoCarrito = carrito.map(p => {
-        if (p.id === id) {
-          if (p.cantidad < productoStock) { // Usa el stock real del producto
+        console.log('Stock disponible:', productoStock);
+        console.log('Cantidad actual:', p.cantidad); // Mostrar la cantidad actual del carrito
+  
+        if (p.id_producto === id) { // Comparar con id_producto
+          if (p.cantidad < productoStock) {
             return { ...p, cantidad: p.cantidad + 1 };
           } else {
             Swal.fire({
@@ -48,48 +62,42 @@ const CarritoPage = () => {
       });
   
       setCarrito(nuevoCarrito);
-      localStorage.setItem('carrito', JSON.stringify(nuevoCarrito)); // Actualiza el almacenamiento local
-      actualizarContador(nuevoCarrito); // Actualiza el contador
+      localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
+      actualizarContador(nuevoCarrito);
     } catch (error) {
       console.error('Error al obtener el stock del producto:', error);
     }
   };
 
-  // Función para disminuir la cantidad del producto
   const disminuirCantidad = (id) => {
     const nuevoCarrito = carrito.map(p =>
-      p.id === id ? { ...p, cantidad: p.cantidad > 1 ? p.cantidad - 1 : 1 } : p
+      p.id_producto === id ? { ...p, cantidad: p.cantidad > 1 ? p.cantidad - 1 : 1 } : p
     );
     setCarrito(nuevoCarrito);
     localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
-    actualizarContador(nuevoCarrito); // Actualiza el contador
+    actualizarContador(nuevoCarrito);
   };
 
-  // Función para eliminar un producto del carrito
   const eliminarProducto = (id) => {
-    const nuevoCarrito = carrito.filter(p => p.id !== id);
+    const nuevoCarrito = carrito.filter(p => p.id_producto !== id);
     setCarrito(nuevoCarrito);
     localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
-    actualizarContador(nuevoCarrito); // Actualiza el contador
+    actualizarContador(nuevoCarrito);
   };
 
-  // Función para vaciar el carrito
   const vaciarCarrito = () => {
     setCarrito([]);
-    localStorage.removeItem('carrito'); // Elimina el carrito del localStorage
-    actualizarContador([]); // Actualiza el contador a 0
+    localStorage.removeItem('carrito');
+    actualizarContador([]);
   };
 
-  // Función para calcular el subtotal
   const calcularSubtotal = () => {
     return carrito.reduce((total, producto) => total + (producto.precio_unitario * producto.cantidad), 0);
   };
 
-  // Función para manejar el pago
   const handlePagar = () => {
     const isAuthenticated = sessionStorage.getItem("isAuthenticated") === "true";
 
-    // Verificar si el carrito está vacío
     if (carrito.length === 0) {
       Swal.fire({
         title: "Carrito vacío",
@@ -98,11 +106,10 @@ const CarritoPage = () => {
         timer: 2000, 
         showConfirmButton: false, 
       });
-      return; // No permitir continuar si el carrito está vacío
+      return; 
     }
 
     if (!isAuthenticated) {
-      // Mostrar alerta si el usuario no está autenticado
       Swal.fire({
         title: "Inicia sesión o crea una cuenta",
         text: "Debes estar registrado para proceder con el pago.",
@@ -110,13 +117,13 @@ const CarritoPage = () => {
         timer: 2000, 
         showConfirmButton: false, 
       }).then(() => {
-        navigate("/inicio_registro.js"); // Redirige a la página de inicio de sesión/registro
+        navigate("/inicio_registro.js"); 
       });
     } else {
-      // Continuar con el proceso de pago
       navigate("/venta_cliente.js");
     }
   };
+
   const calcularCantidadTotal = () => {
     return carrito.reduce((total, producto) => total + producto.cantidad, 0);
   };
@@ -124,17 +131,17 @@ const CarritoPage = () => {
   return (
     <div>
       <Header productos={[]} contadorCarrito={contadorCarrito} />
-      <br/>
-      <br/>
-      <br/>
-      <br/>
-      <br/>
-      <br/>
-      <br/>
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
 
       <div className="container mt-5">
         <h2>Carrito de Compras</h2>
-        <br/>
+        <br />
 
         <div className="table-responsive">
           <table className="table table-striped">
@@ -153,16 +160,16 @@ const CarritoPage = () => {
                 </tr>
               ) : (
                 carrito.map((producto) => (
-                  <tr key={producto.id}>
+                  <tr key={producto.id_producto}>
                     <td>{producto.nombre}</td>
                     <td>${producto.precio_unitario}</td>
                     <td>
-                      <button onClick={() => disminuirCantidad(producto.id)} className="btn btn-sm">-</button>
+                      <button onClick={() => disminuirCantidad(producto.id_producto)} className="btn btn-sm">-</button>
                       <span className="mx-2">{producto.cantidad}</span>
-                      <button onClick={() => aumentarCantidad(producto.id)} className="btn btn-sm ">+</button>
+                      <button onClick={() => aumentarCantidad(producto.id_producto)} className="btn btn-sm ">+</button>
                     </td>
                     <td>
-                      <button onClick={() => eliminarProducto(producto.id)} className="btn btn-sm btn-danger">Eliminar</button>
+                      <button onClick={() => eliminarProducto(producto.id_producto)} className="btn btn-sm btn-danger">Eliminar</button>
                     </td>
                   </tr>
                 ))
@@ -172,7 +179,7 @@ const CarritoPage = () => {
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>
               <h4>Subtotal: ${calcularSubtotal()}</h4>
-              <h4>Cantidad Total: {calcularCantidadTotal()}</h4> {/* Cantidad Total agregada aquí */}
+              <h4>Cantidad Total: {calcularCantidadTotal()}</h4>
             </div>
             <div className="d-flex justify-content-center align-items-center mt-3">
               <button onClick={vaciarCarrito} className="btn btn-danger mx-2">Vaciar Carrito</button>
@@ -182,6 +189,8 @@ const CarritoPage = () => {
           </div>
         </div>
       </div>
+      <br />
+      <br />
       <br />
       <Footer />
     </div>

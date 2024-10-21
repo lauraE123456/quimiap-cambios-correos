@@ -5,39 +5,27 @@ import Swal from 'sweetalert2';
 
 const VentasAdmin = () => {
   const [ventas, setVentas] = useState([]);
-  const [usuarios, setUsuarios] = useState([]); // Para guardar los usuarios
   const [filteredVentas, setFilteredVentas] = useState([]);
   const [fechaFiltro, setFechaFiltro] = useState('');
-  const [identificacionFiltro, setIdentificacionFiltro] = useState(''); // Cambiado a identificación
+  const [identificacionFiltro, setIdentificacionFiltro] = useState('');
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // Función para obtener VENTAS de la API
-  const fetchVentas = async () => {
+  // Función para obtener VENTAS y USUARIOS de la API
+  const fetchVentasUsuarios = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/Sales');
+      const response = await axios.get('http://localhost:4001/ventasUsuariosAdmin');
       setVentas(response.data);
       setFilteredVentas(response.data); // Inicialmente, mostrar todas las ventas
     } catch (error) {
-      console.error('Error fetching ventas:', error);
-    }
-  };
-
-  // Función para obtener USUARIOS de la API
-  const fetchUsuarios = async () => {
-    try {
-      const response = await axios.get('http://localhost:4000/Users'); // Ruta para los usuarios
-      setUsuarios(response.data);
-    } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching ventas y usuarios:', error);
     }
   };
 
   useEffect(() => {
-    fetchVentas();
-    fetchUsuarios(); // Traemos los usuarios también
+    fetchVentasUsuarios(); // Llamar al nuevo endpoint
   }, []);
 
   // Función para manejar el cambio en el input de fecha
@@ -73,14 +61,11 @@ const VentasAdmin = () => {
       return;
     }
     
-
     // Filtrar por número de identificación
     if (identificacionFiltro) {
-      ventasFiltradas = ventasFiltradas.filter((venta) => {
-        // Buscar el usuario correspondiente a esta venta
-        const usuario = usuarios.find(user => user.id === venta.cliente_id);
-        return usuario && usuario.num_doc === identificacionFiltro; // Filtrar por num_doc
-      });
+      ventasFiltradas = ventasFiltradas.filter((venta) =>
+        venta.num_doc === identificacionFiltro
+      );
     }
 
     setFilteredVentas(ventasFiltradas);
@@ -151,21 +136,16 @@ const VentasAdmin = () => {
               </tr>
             </thead>
             <tbody>
-              {currentVentas.map((venta) => {
-                // Buscar el usuario correspondiente a esta venta
-                const usuario = usuarios.find(user => user.id === venta.cliente_id);
-
-                return (
-                  <tr key={venta.id}>
-                    <td>{usuario ? usuario.num_doc : 'N/A'}</td> {/* Mostrar num_doc */}
-                    <td>{venta.id}</td>
-                    <td>{venta.fecha_venta}</td>
-                    <td>{venta.metodo_pago}</td>
-                    <td>{venta.precio_total}</td>
-                    <td>{venta.estado}</td>
-                  </tr>
-                );
-              })}
+              {currentVentas.map((venta) => (
+                <tr key={venta.id_venta}>
+                  <td>{venta.num_doc}</td>
+                  <td>{venta.id_venta}</td>
+                  <td>{venta.fecha_venta}</td>
+                  <td>{venta.metodo_pago}</td>
+                  <td>{venta.precio_total}</td>
+                  <td>{venta.estado}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
@@ -191,6 +171,6 @@ const VentasAdmin = () => {
       </div>
     </div>
   );
-}
+};
 
 export default VentasAdmin;
