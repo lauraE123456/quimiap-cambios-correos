@@ -3,7 +3,6 @@ import axios from 'axios';
 import Header from '../../componentes/header1';
 import Footer from '../../componentes/footer';
 import '../../styles/MisVentas.css';
-import Swal from 'sweetalert2';
 
 const MisVentas = () => {
   const [ventas, setVentas] = useState([]);

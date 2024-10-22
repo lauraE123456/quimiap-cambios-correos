@@ -27,7 +27,7 @@ app.use(express.json()); // Permite el parsing de JSON en las solicitudes
 const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
-  password: 'r1234',
+  password: 'root',
   database: 'quimiap'
 });
 
@@ -241,17 +241,17 @@ app.post('/login', (req, res) => {
       // Verifica si el usuario existe
       if (results.length === 0) {
           console.log('No se encontró el usuario con el correo proporcionado.');
-          return res.status(401).json({ success: false, message: 'Credenciales incorrectas.' });
+          return res.status(404).json({ success: false, message: 'El correo electrónico no está registrado.' });
       }
 
       const user = results[0];
       console.log('Usuario encontrado:', user);
 
-      // Verificar el estado de la cuenta
-      if (user.estado !== 'activo') {
-          console.log('Estado de la cuenta:', user.estado);
-          return res.status(403).json({ success: false, message: 'Cuenta inactiva o pendiente.' });
-      }
+      if (user.estado === 'inactivo') {
+        return res.status(403).json({ success: false, message: 'Tu cuenta está inactiva. Contacta a soporte.' });
+    } else if (user.estado === 'pendiente') {
+        return res.status(409).json({ success: false, message: 'Tu cuenta está pendiente de verificación. Revisa tu correo electrónico.' });
+    }
 
       // Verifica la contraseña
       bcrypt.compare(contrasena, user.contrasena, (err, isMatch) => {
@@ -526,48 +526,64 @@ app.put('/descontinuarProducto', (req, res) => {
 });
 
 
-// REGISTRAR VENTAS
 app.post('/registrarVenta', (req, res) => {
-  const { metodo_pago, precio_total, correo_electronico, cliente_id, carrito } = req.body; 
+  const { metodo_pago, precio_total, carrito } = req.body; 
+  const cliente_id = user.id_usuario; // Suponiendo que el ID del usuario logueado se almacena en req.user después de la autenticación
+
+  // Obtener el correo electrónico del usuario logueado
+  const correo_electronico = req.user.correo_electronico; 
+
+  // Validar que los campos necesarios están presentes
+  if (!metodo_pago || !precio_total || !Array.isArray(carrito) || carrito.length === 0) {
+      return res.status(400).json({ success: false, error: 'Faltan datos necesarios para registrar la venta.' });
+  }
 
   const queryVenta = `CALL registrar_venta(?, ?, ?, ?)`;
-  
+
   connection.query(queryVenta, [metodo_pago, precio_total, correo_electronico, cliente_id], (err, results) => {
-    if (err) {
-      console.error('Error registrando la venta:', err);
-      return res.status(500).json({ success: false, error: err });
-    }
+      if (err) {
+          console.error('Error registrando la venta:', err);
+          return res.status(500).json({ success: false, error: 'Error registrando la venta.' });
+      }
 
-    // Obtener el ID de la venta de los resultados
-    const id_venta = results[0][0].id_venta; 
+      // Obtener el ID de la venta de los resultados
+      const id_venta = results[0][0]?.id_venta; 
+      if (!id_venta) {
+          return res.status(500).json({ success: false, error: 'No se pudo obtener el ID de la venta.' });
+      }
 
-    const queryDetalles = `CALL registrar_detalles_venta(?, ?, ?, ?, ?)`;
-    
-    const detallesPromises = carrito.map(producto => {
-      const detalle = {
-        producto_id: producto.id_producto,
-        precio_unitario: producto.precio_unitario,
-        cantidad_total: producto.cantidad,
-        subtotal: producto.precio_unitario * producto.cantidad, // Calcula el subtotal
-      };
-      return new Promise((resolve, reject) => {
-        connection.query(queryDetalles, [id_venta, detalle.producto_id, detalle.precio_unitario, detalle.cantidad_total, detalle.subtotal], (err, results) => {
-          if (err) {
-            console.error('Error registrando los detalles de la venta:', err);
-            reject(err);
-          } else {
-            resolve(results);
-          }
-        });
+      const queryDetalles = `CALL registrar_detalles_venta(?, ?, ?, ?, ?)`;
+      
+      const detallesPromises = carrito.map(producto => {
+          const detalle = {
+              producto_id: producto.id_producto,
+              precio_unitario: producto.precio_unitario,
+              cantidad_total: producto.cantidad,
+              subtotal: producto.precio_unitario * producto.cantidad, // Calcula el subtotal
+          };
+          return new Promise((resolve, reject) => {
+              connection.query(queryDetalles, [id_venta, detalle.producto_id, detalle.precio_unitario, detalle.cantidad_total, detalle.subtotal], (err, results) => {
+                  if (err) {
+                      console.error('Error registrando los detalles de la venta:', err);
+                      reject(err);
+                  } else {
+                      resolve(results);
+                  }
+              });
+          });
       });
-    });
 
-    // Esperar a que todos los detalles se registren
-    Promise.all(detallesPromises)
-      .then(() => res.json({ success: true, id_venta })) // Devuelve el ID de la venta
-      .catch(err => res.status(500).json({ success: false, error: err }));
+      // Esperar a que todos los detalles se registren
+      Promise.all(detallesPromises)
+          .then(() => res.json({ success: true, id_venta })) // Devuelve el ID de la venta
+          .catch(err => {
+              console.error('Error al registrar los detalles:', err);
+              res.status(500).json({ success: false, error: 'Error registrando los detalles de la venta.' });
+          });
   });
 });
+
+
 
 
 // REGISTRAR DOMICILIO

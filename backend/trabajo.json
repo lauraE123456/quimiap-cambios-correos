@@ -8,9 +8,11 @@
       "correo_electronico": "lauraalbarracin553@gmail.com",
       "tipo_doc": "cc",
       "num_doc": "1081399564",
-      "contrasena": "Lau12345@",
+      "contrasena": "$2b$10$KvSjP9LPR3dgxsLVUaIL0OW/mIPwPaHAqM5/q9ZwESujpZTSdckKG",
       "rol": "Gerente",
-      "estado": "Activo"
+      "estado": "Activo",
+      "resetToken": "10ff6ae9fcb466d73a184e2c187e5d3fc5491eae59677f5d8757d24132d65f05",
+      "resetTokenExpires": 1729537823749
     },
     {
       "id": "2324",

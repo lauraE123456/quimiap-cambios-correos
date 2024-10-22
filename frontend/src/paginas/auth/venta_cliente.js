@@ -90,87 +90,104 @@ const VentasCliente = () => {
   const handleSubmit = async (e) => {
     console.log('handleSubmit fue llamado'); // Agrega esto
     e.preventDefault();
-  
-    const ventaData = {
-      metodo_pago: metodoPago,
-      precio_total: precioTotal,
-      correo_electronico: correo_electronico,
-      cliente_id: clienteId,
-      carrito: carrito, 
-    };
-    
-    console.log('Datos de venta a enviar:', ventaData); // Verifica los datos de la venta
-  
-    try {
-      const domiciliarioId = mostrarDomicilio ? await asignarDomiciliario() : null;
-      console.log('ID de domiciliario asignado:', domiciliarioId); // Verifica el ID asignado
-      
-      if (mostrarDomicilio && !domiciliarioId) {
+
+    // Verifica que el cliente tenga un ID
+    if (!clienteId) {
         Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudo asignar un domiciliario.',
+            icon: 'error',
+            title: 'Error',
+            text: 'El ID del cliente es necesario.',
         });
-        return;
-      }
-  
-      // Envía la información de la venta junto con los detalles
-      const ventaResponse = await axios.post('http://localhost:4001/registrarVenta', ventaData);
-      const ventaId = ventaResponse.data.id_venta; // Asegúrate de que esto coincida con tu respuesta
-      console.log('Venta registrada con ID:', ventaId); // Verifica el ID de la venta registrada
-  
-      if (mostrarDomicilio) {
-        const domicilioData = {
-          venta_id: ventaId,
-          direccion: domicilio.direccion,
-          ciudad: domicilio.ciudad,
-          codigo_postal: domicilio.codigo_postal,
-          fecha_entrega: domicilio.fecha_entrega,
-          estado_entrega: 'pendiente', // Asegúrate de incluir esto
-          domiciliario_id: domiciliarioId,
-        };
-  
-        console.log('Datos de domicilio a enviar:', domicilioData); // Agrega esta línea
-  
-        await axios.post('http://localhost:4001/registrarDomicilio', domicilioData);
-      }
-  
-      Swal.fire({
-        icon: 'success',
-        title: 'Venta registrada con éxito',
-        text: 'La venta ha sido registrada correctamente.',
-        timer: 2000,
-        showConfirmButton: false,
-      }).then(() => {
-        navigate('/MisVentas.js');
-        setMetodoPago('');
-        setPrecioTotal('');
-        setCarrito([]);
-        setDomicilio({
-          direccion: '',
-          ciudad: '',
-          codigo_postal: '',
-          fecha_entrega: '',
-        });
-        setMostrarDomicilio(false);
-        localStorage.removeItem('carrito');
-        localStorage.removeItem('clienteId');
-      });
-    } catch (error) {
-      console.error('Error al registrar la venta:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Hubo un problema al registrar la venta. Inténtelo de nuevo.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+        return; // Evita continuar si no hay ID
     }
-  };
-  
-  const calcularTotal = () => {
+
+    const ventaData = {
+        metodo_pago: metodoPago,
+        precio_total: calcularTotal(), // Asegúrate de calcular el total correcto
+        cliente_id: clienteId,
+        carrito: carrito,
+    };
+
+    console.log('Datos de venta a enviar:', ventaData); // Verifica los datos de la venta
+
+    try {
+        const domiciliarioId = mostrarDomicilio ? await asignarDomiciliario() : null;
+        console.log('ID de domiciliario asignado:', domiciliarioId); // Verifica el ID asignado
+
+        if (mostrarDomicilio && !domiciliarioId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo asignar un domiciliario.',
+            });
+            return;
+        }
+
+        // Envía la información de la venta junto con los detalles
+        const ventaResponse = await axios.post('http://localhost:4001/registrarVenta', ventaData);
+        const ventaId = ventaResponse.data.id_venta; // Asegúrate de que esto coincida con tu respuesta
+        console.log('Venta registrada con ID:', ventaId); // Verifica el ID de la venta registrada
+
+        // Envía el correo con los detalles de la venta
+        const ventaCorreoResponse = await axios.post('http://localhost:5000/enviar-detalle-venta', {
+            venta_id: ventaId,
+            productos: carrito, // El carrito contiene los productos comprados
+            cliente_id: clienteId,// Puedes mantener esto si necesitas el ID del cliente
+        });
+        console.log('Correo enviado:', ventaCorreoResponse.data.message); // Verifica la respuesta del correo
+
+        if (mostrarDomicilio) {
+            const domicilioData = {
+                venta_id: ventaId,
+                direccion: domicilio.direccion,
+                ciudad: domicilio.ciudad,
+                codigo_postal: domicilio.codigo_postal,
+                fecha_entrega: domicilio.fecha_entrega,
+                estado_entrega: 'pendiente', // Asegúrate de incluir esto
+                domiciliario_id: domiciliarioId,
+            };
+
+            console.log('Datos de domicilio a enviar:', domicilioData); // Agrega esta línea
+
+            await axios.post('http://localhost:4001/registrarDomicilio', domicilioData);
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Venta registrada con éxito',
+            text: 'La venta ha sido registrada correctamente y se ha enviado un correo de confirmación.',
+            timer: 2000,
+            showConfirmButton: false,
+        }).then(() => {
+            navigate('/MisVentas.js');
+            setMetodoPago('');
+            setPrecioTotal('');
+            setCarrito([]);
+            setDomicilio({
+                direccion: '',
+                ciudad: '',
+                codigo_postal: '',
+                fecha_entrega: '',
+            });
+            setMostrarDomicilio(false);
+            localStorage.removeItem('carrito');
+            localStorage.removeItem('clienteId');
+        });
+    } catch (error) {
+        console.error('Error al registrar la venta:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Hubo un problema al registrar la venta. Inténtelo de nuevo.',
+            timer: 2000,
+            showConfirmButton: false,
+        });
+    }
+};
+
+const calcularTotal = () => {
     return carrito.reduce((total, producto) => total + (producto.precio_unitario * producto.cantidad), 0);
-  };
+};
 
   useEffect(() => {
     setPrecioTotal(calcularTotal());
@@ -279,18 +296,6 @@ const VentasCliente = () => {
                   id="precioTotal"
                   value={precioTotal}
                   readOnly
-                />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="correoElectronico" className="form-label">Correo Electrónico</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  id="correoElectronico"
-                  maxLength={50}
-                  value={correo_electronico}
-                  onChange={(e) => setCorreoElectronico(e.target.value)} // Agrega esta línea para manejar el cambio
-                  required // Puedes hacer este campo obligatorio si es necesario
                 />
               </div>
               <div className="mb-3">
